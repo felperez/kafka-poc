@@ -5,9 +5,9 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.*;
+import org.apache.kafka.streams.errors.StreamsException;
 import org.apache.kafka.streams.kstream.*;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -19,90 +19,73 @@ import kafkaStreams.app.src.main.java.com.example.serialization.OrderAggregation
 
 
 public class DslExample {
+    String inputTopic = "orders-topic";
+    String outputTopic = "aggregations-topic";
+    String kafkaServerURL = "127.0.0.1";
+    String kafkaServerPort = "29092";
 
-    public static void main(String[] args) {
-        // the builder is used to construct the topology
+    public static void main(String[] args) throws StreamsException {
+
+
+        int windowLength = 1;
+
         StreamsBuilder builder = new StreamsBuilder();
 
-        // read from the source topic, "orders-topic"
-        KStream<Void, String> stream = builder.stream("orders-topic");
-
-        // extract product from each order
+        KStream<Void, String> stream = builder.stream(inputTopic);
         KStream<String, String> productStream = stream
                 .map((key, value) -> KeyValue.pair(getProductFromOrder(value), value));
 
-        // create a tumbling window of 1 minute
-        TimeWindows tumblingWindow = TimeWindows.of(Duration.ofMinutes(1));
-
-        // count the number of orders per product within the tumbling window
+        TimeWindows tumblingWindow = TimeWindows.of(Duration.ofMinutes(windowLength));
         KTable<Windowed<String>, Long> orderCountPerProduct = productStream
                 .groupByKey()
                 .windowedBy(tumblingWindow)
                 .count();
 
-        // modify the output message to include the window start and end timestamps
-        KStream<String, Map<String, Object>> outputStream = orderCountPerProduct
+        KStream<String, String> outputStream = orderCountPerProduct
                 .toStream()
                 .map((windowedKey, count) -> {
-                    String product = windowedKey.key();
+                    String product = windowedKey.key().split(": ")[1];
                     long windowStart = windowedKey.window().start();
-                    long windowEnd = windowedKey.window().end();
-
-                    Map<String, Object> message = new HashMap<>();
-
-                    message.put("product_id", product);
-                    message.put("orders", count);
-                    message.put("timegroup", windowStart);
-                    // message.put("windowEnd", windowEnd);
+                    String message = String.format("{\"product_id\": \"%s\", \"timegroup\": %s, \"orders\": %s}", product, windowStart, count );
 
                     return KeyValue.pair(product, message);
                 });
 
 
-
-        // send the modified output message to a new Kafka topic
-        String outputTopic = "aggregations-topic";
         outputStream.foreach(
                 (key, value) -> {
-                    // Create a Kafka producer record with the key, value, and target topic
-                    ProducerRecord<String, Map<String, Object>> record = new ProducerRecord<>(outputTopic, key, value);
+                    ProducerRecord<String, String> record = new ProducerRecord<String, String>(outputTopic, key, value);
+                    KafkaProducer<String, String> producer = createProducer();
 
-                    // Send the record to the Kafka topic
-                    KafkaProducer<String, Map<String, Object>> producer = createProducer();
                     producer.send(record);
                     producer.close();
                 }
         );
 
-        // set the required properties for running Kafka Streams
         Properties config = new Properties();
         config.put(StreamsConfig.APPLICATION_ID_CONFIG, "dev1");
-        config.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:29092");
+        config.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, String.format("%s:%s", kafkaServerURL, kafkaServerPort));
         config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         config.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         config.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());
-        // config.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, JsonSerde.class);
 
-        // build the topology and start streaming
         KafkaStreams streams = new KafkaStreams(builder.build(), config);
         streams.start();
 
-        // close Kafka Streams when the JVM shuts down (e.g. SIGTERM)
         Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
     }
 
     private static String getProductFromOrder(String order) {
-        // Assuming the order format is "<product>,<other-fields>"
         String[] fields = order.split(",");
         return fields[0];
     }
 
-    private static KafkaProducer<String, Map<String, Object>> createProducer() {
+    private static KafkaProducer<String, String> createProducer() {
         Properties props = new Properties();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "127.0.0.1:29092");
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, String.format("%s:%s", kafkaServerURL, kafkaServerPort));
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "kafkaStreams.app.src.main.java.com.example.serialization.json.CustomSerdes" );
-        return new KafkaProducer<>(props);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+        return new KafkaProducer<String, String>(props);
     }
 }
 
