@@ -3,6 +3,7 @@ import aiohttp
 import random
 import string
 
+
 async def send_request(session, url):
     product_id = ''.join(random.choices(string.digits, k=2))
     quantity = random.randint(1, 100)
@@ -15,6 +16,7 @@ async def send_request(session, url):
             print(response)
         return await response.text()
 
+
 async def send_requests(url, num_requests):
     async with aiohttp.ClientSession() as session:
         tasks = []
@@ -22,13 +24,14 @@ async def send_requests(url, num_requests):
             tasks.append(send_request(session, url))
         return await asyncio.gather(*tasks)
 
+
 async def main():
-    url = 'http://0.0.0.0:8000/send_order'  # Replace with your desired URL
-    num_requests = 10  # Number of requests to send per second
+    url = 'http://0.0.0.0:8000/send_order'
+    num_requests = 10
 
     while True:
         await send_requests(url, num_requests)
-        await asyncio.sleep(1)  # Wait for 1 second
+        await asyncio.sleep(1)
 
 
 if __name__ == '__main__':
