@@ -8,7 +8,8 @@ an API built using FastAPI, sends them to the Kafka cluster, which then sends th
 Kafka Streams application. The Kafka Streams application performs basic aggregations over
 the messages, and then returns them to the Kafka cluster. These aggregations are then 
 consumed by a python-based consumer, which sends them to a Postgres database, from where
-they are exposed via the FastAPI service.
+they are exposed via the FastAPI service. The code is full of hacks and is not intended to run 
+on any sort of production environment, it is mostly made for educational purposes.
 
 ## Tools used
 
