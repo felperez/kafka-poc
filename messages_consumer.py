@@ -34,10 +34,8 @@ consumer = KafkaConsumer(kafka_topic, bootstrap_servers=kafka_server, auto_offse
 
 
 for message in consumer:
-
     message_value = json.loads(message.value.decode('utf-8'))
-
-    product_id, orders, window_start =  message_value.get("product_id"), message_value.get("orders"), message_value.get("timegroup")
+    product_id, orders, window_start = message_value.get("product_id"), message_value.get("orders"), message_value.get("timegroup")
 
     orders = int(orders)
     window_start = int(window_start)
@@ -45,7 +43,11 @@ for message in consumer:
     timegroup = datetime.datetime.fromtimestamp(window_start / 1000)
     data = (product_id, timegroup, orders)
 
-    insert_query = "INSERT INTO orders_by_minute (product_id, timegroup, orders) VALUES (%s, %s, %s) ON CONFLICT (product_id, timegroup) DO UPDATE SET orders = excluded.orders;"
+    insert_query = """INSERT INTO orders_by_minute (product_id, timegroup, orders) 
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (product_id, timegroup) 
+                    DO UPDATE SET orders = excluded.orders;"""
+
     cursor.execute(insert_query, data)
     connection.commit()
 
