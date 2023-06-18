@@ -22,6 +22,20 @@ aggregations from, I decided to use FastAPI, as it requires minimal setup and ve
 6. Kafka: for the messages streaming
 7. Kafka Streams: to consume one of the Kafka topics and perform aggregations.
 
+## To make it work
+
+The Kafka cluster runs in docker, for which the docker-compose is used. It mounts:
+1. Zookeper,
+2. The brokers,
+3. Schema registry (unused for now),
+4. Kafka UI,
+5. Rest proxy (unused for now).
+One also needs to run the messages consumer python script, as well as the api. These are not dockerized
+for development convenience purposes. Finally, one also needs to build and run the Kafka Streams app, for which
+I used Gradle. The requirements have not been made explicit as I find it unlikely that anyone else will try to run
+this.
+
+
 ## Work to do
 1. Security of API,
 2. Better handling of schemas of db via SQLAlchemy
@@ -30,4 +44,5 @@ aggregations from, I decided to use FastAPI, as it requires minimal setup and ve
 5. Better handling of inputs in API,
 6. Testing,
 7. Use schema registry and AVRO serialization to pass produce/consume messages,
-8. Get env vars in the kafka streams code
+8. Get env vars in the kafka streams code,
+9. Cloud deployment.
