@@ -30,6 +30,7 @@ The Kafka cluster runs in docker, for which the docker-compose is used. It mount
 3. Schema registry (unused for now),
 4. Kafka UI,
 5. Rest proxy (unused for now).
+
 One also needs to run the messages consumer python script, as well as the api. These are not dockerized
 for development convenience purposes. Finally, one also needs to build and run the Kafka Streams app, for which
 I used Gradle. The requirements have not been made explicit as I find it unlikely that anyone else will try to run
